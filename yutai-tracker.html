@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="優待管理">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#F3D6C4">
+<link rel="manifest" id="manifestLink">
+<title>株主優待トラッカー</title>
+<style>
+  :root{
+    --bg:#FBF1E9;
+    --appbar:#F3D6C4;
+    --card:#F6D8A3;
+    --card-line:rgba(255,255,255,.55);
+    --ink:#5B3A22;
+    --ink-soft:#93725A;
+    --accent:#D9752B;
+    --accent-bg:#FFF6EC;
+    --expired-bg:#E7DCCF;
+    --expired-text:#8A7A6B;
+    --fab:#5B3A22;
+    --search-bg:#FFFFFF;
+    --line:#E9D9C4;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{background:var(--bg);color:var(--ink);font-family:"Zen Kaku Gothic New","Hiragino Sans",sans-serif;padding-bottom:96px;}
+  .appbar{position:sticky;top:0;z-index:20;background:var(--appbar);padding:14px 16px;display:flex;align-items:center;gap:10px;}
+  .appbar .avatar{width:38px;height:38px;border-radius:12px;background:var(--fab);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 auto;}
+  .appbar h1{font-size:17px;font-weight:700;margin:0;flex:1;letter-spacing:.01em;}
+  .appbar-tools{display:flex;gap:4px;}
+  .icon-round{width:36px;height:36px;border-radius:50%;border:none;background:transparent;color:var(--ink);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .icon-round:active{background:rgba(255,255,255,.35);}
+
+  .wrap{max-width:480px;margin:0 auto;padding:14px 16px 0;}
+  .search-box{display:flex;align-items:center;gap:8px;background:var(--search-bg);border-radius:14px;padding:12px 14px;margin-bottom:18px;box-shadow:0 1px 4px rgba(90,60,30,.08);}
+  .search-box input{border:none;outline:none;flex:1;font-size:14px;font-family:inherit;background:transparent;color:var(--ink);}
+  .search-box input::placeholder{color:#C2AF9E;}
+
+  .date-header{text-align:center;color:var(--ink-soft);font-size:13px;font-weight:600;margin:18px 0 10px;}
+  .date-header:first-of-type{margin-top:0;}
+
+  .ticket{background:var(--card);border-radius:16px;padding:14px 16px 12px;margin-bottom:14px;cursor:pointer;transition:transform .12s;}
+  .ticket:active{transform:scale(.985);}
+  .ticket.expired{background:var(--expired-bg);color:var(--expired-text);}
+  .t-top{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .t-name{font-weight:700;font-size:16px;line-height:1.3;}
+  .t-code{font-weight:400;font-size:11.5px;color:var(--ink-soft);margin-right:5px;}
+  .t-amount{font-weight:700;font-size:19px;white-space:nowrap;}
+  .t-meta{display:flex;justify-content:space-between;align-items:center;margin-top:9px;padding-top:8px;border-top:1px dashed var(--card-line);}
+  .t-benefit{font-size:12.5px;display:flex;align-items:center;gap:5px;}
+  .pill{font-size:12px;font-weight:700;padding:4px 12px;border-radius:20px;background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent);white-space:nowrap;}
+  .ticket.expired .pill{background:transparent;color:var(--expired-text);border-color:var(--expired-text);}
+
+  .empty{text-align:center;padding:60px 20px;color:var(--ink-soft);font-size:13px;}
+  .empty div.big{font-size:34px;margin-bottom:10px;}
+
+  .fab{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);width:58px;height:58px;border-radius:18px;background:var(--fab);color:#fff;border:none;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 5px 16px rgba(70,45,20,.35);cursor:pointer;z-index:30;}
+  .fab:active{transform:translateX(-50%) scale(.93);}
+
+  .sheet-backdrop{position:fixed;inset:0;background:rgba(50,30,15,.4);opacity:0;pointer-events:none;transition:opacity .2s;z-index:40;}
+  .sheet-backdrop.show{opacity:1;pointer-events:auto;}
+  .sheet{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-radius:20px 20px 0 0;padding:8px 20px calc(20px + env(safe-area-inset-bottom));max-width:480px;margin:0 auto;transform:translateY(100%);transition:transform .25s cubic-bezier(.2,.9,.3,1);z-index:41;max-height:88vh;overflow-y:auto;}
+  .sheet.show{transform:translateY(0);}
+  .sheet-handle{width:36px;height:4px;background:var(--line);border-radius:2px;margin:8px auto 14px;}
+  .sheet h2{font-size:15px;font-weight:700;margin:0 0 14px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  label{display:block;font-size:11px;color:var(--ink-soft);margin-bottom:4px;}
+  input,textarea{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:#fff;color:var(--ink);margin-bottom:10px;font-family:inherit;}
+  textarea{min-height:120px;resize:vertical;font-family:monospace;font-size:11.5px;}
+  input:focus,textarea:focus{outline:none;border-color:var(--accent);}
+  .full{grid-column:1/-1;}
+  .sheet-actions{display:flex;gap:8px;margin-top:4px;}
+  .save-btn{flex:1;padding:12px;border:none;border-radius:10px;background:var(--fab);color:#fff;font-size:14px;font-weight:700;cursor:pointer;}
+  .save-btn:active{opacity:.85;}
+  .cancel-btn{padding:12px 16px;border:1px solid var(--line);border-radius:10px;background:transparent;color:var(--ink-soft);font-size:14px;cursor:pointer;}
+  .link-btn{padding:12px 16px;border:none;background:transparent;color:var(--accent);font-size:13px;cursor:pointer;font-weight:600;}
+  .err{font-size:11.5px;color:#C0392B;margin:-6px 0 8px;display:none;}
+  .hint{font-size:11px;color:var(--ink-soft);margin:-4px 0 10px;line-height:1.5;}
+  .chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+  .chip{padding:6px 12px;border:1px solid var(--line);border-radius:20px;background:#fff;font-size:12px;color:var(--ink-soft);cursor:pointer;font-family:inherit;}
+  .chip.active{background:var(--fab);color:#fff;border-color:var(--fab);}
+  .secondary-btn{width:100%;padding:11px;border:1px solid var(--accent);border-radius:10px;background:var(--accent-bg);color:var(--accent);font-size:13.5px;font-weight:700;cursor:pointer;margin-bottom:12px;font-family:inherit;}
+</style>
+</head>
+<body>
+  <div class="appbar">
+    <div class="avatar">🎫</div>
+    <h1>株主優待トラッカー</h1>
+    <div class="appbar-tools">
+      <button class="icon-round" id="settingsBtn" aria-label="設定">⚙️</button>
+      <button class="icon-round" id="statsBtn" aria-label="統計">📊</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="search-box">
+      <span>🔍</span>
+      <input id="searchInput" placeholder="銘柄名で所有優待を検索">
+    </div>
+
+    <div id="listArea"></div>
+    <div class="empty" id="emptyMsg" style="display:none;">
+      <div class="big">🎫</div>
+      右下の＋から最初の優待を登録しましょう
+    </div>
+  </div>
+
+  <button class="fab" id="fabBtn" aria-label="優待を追加">＋</button>
+
+  <div class="sheet-backdrop" id="backdrop"></div>
+  <div class="sheet" id="sheet">
+    <div class="sheet-handle"></div>
+    <h2 id="formTitle">優待を追加</h2>
+    <div class="grid2">
+      <div class="full"><label>銘柄名</label><input id="f_name" list="nameSuggestions" placeholder="例：日本マクドナルドホールディングス" autocomplete="off"><datalist id="nameSuggestions"></datalist></div>
+      <div class="full"><label>銘柄コード</label><input id="f_code" placeholder="例：2702（名前を入力すると自動入力されます）"></div>
+
+      <div class="full">
+        <label>優待内容</label>
+        <div class="chip-row" id="benefitChips">
+          <button type="button" class="chip" data-benefit="買物券">買物券</button>
+          <button type="button" class="chip" data-benefit="食事券">食事券</button>
+          <button type="button" class="chip" data-benefit="割引券">割引券</button>
+          <button type="button" class="chip" data-benefit="カタログギフト">カタログギフト</button>
+          <button type="button" class="chip" data-benefit="クオカード">クオカード</button>
+          <button type="button" class="chip" data-benefit="自社製品">自社製品</button>
+          <button type="button" class="chip" data-benefit="宿泊優待">宿泊優待</button>
+          <button type="button" class="chip" data-benefit="施設利用券">施設利用券</button>
+          <button type="button" class="chip" data-benefit="ポイント優待">ポイント優待</button>
+          <button type="button" class="chip" data-benefit="図書カード">図書カード</button>
+        </div>
+        <input id="f_benefit_other" placeholder="その他（自由入力・任意）">
+      </div>
+
+      <div class="full">
+        <label>単位</label>
+        <div class="chip-row" id="unitChips">
+          <button type="button" class="chip active" data-unit="円">円</button>
+          <button type="button" class="chip" data-unit="枚">枚</button>
+          <button type="button" class="chip" data-unit="ポイント">ポイント</button>
+          <button type="button" class="chip" data-unit="回">回</button>
+          <button type="button" class="chip" data-unit="泊">泊</button>
+          <button type="button" class="chip" data-unit="口">口</button>
+        </div>
+      </div>
+
+      <div class="full"><div class="grid2" style="margin:0;">
+        <div><label id="qtyLabel">優待金額（円）</label><input id="f_qty" type="number" placeholder="3000"></div>
+        <div><label id="usedLabel">使用済み金額（円）</label><input id="f_used" type="number" placeholder="0"></div>
+      </div></div>
+      <div class="full" id="unitValueWrap" style="display:none;">
+        <label>1単位あたりの金額（円・任意）</label><input id="f_unitValue" type="number" placeholder="未入力でも登録できます">
+      </div>
+
+      <div class="full"><label>有効期限</label><input id="f_expiry" type="date"></div>
+    </div>
+    <div class="err" id="formErr"></div>
+    <button class="secondary-btn" id="quickUseBtn" style="display:none;">✓ 使用を記録する</button>
+    <div class="sheet-actions">
+      <button class="link-btn" id="deleteBtn" style="display:none;">削除</button>
+      <button class="cancel-btn" id="cancelBtn">キャンセル</button>
+      <button class="save-btn" id="saveBtn">保存する</button>
+    </div>
+  </div>
+
+  <div class="sheet-backdrop" id="useBackdrop"></div>
+  <div class="sheet" id="useSheet">
+    <div class="sheet-handle"></div>
+    <h2 id="useTitle">使用を記録</h2>
+    <p class="hint" id="useCurrent"></p>
+    <label id="useLabel">今回使った金額（円）</label>
+    <input id="f_useAmount" type="number" placeholder="1000">
+    <div class="err" id="useErr"></div>
+    <div class="sheet-actions">
+      <button class="cancel-btn" id="useCancelBtn">キャンセル</button>
+      <button class="save-btn" id="useSaveBtn">記録する</button>
+    </div>
+  </div>
+
+  <div class="sheet-backdrop" id="settingsBackdrop"></div>
+  <div class="sheet" id="settingsSheet">
+    <div class="sheet-handle"></div>
+    <h2>設定</h2>
+    <button class="secondary-btn" id="openExportBtn">データを書き出し（コピー）</button>
+    <button class="secondary-btn" id="openImportBtn">データを読み込み（貼り付け）</button>
+    <p class="hint">ホーム画面に追加する時にデータを引き継ぎたい場合は、こちらで書き出し・読み込みしてください。</p>
+    <div class="sheet-actions"><button class="cancel-btn" id="settingsCloseBtn" style="flex:1;">閉じる</button></div>
+  </div>
+
+  <div class="sheet-backdrop" id="statsBackdrop"></div>
+  <div class="sheet" id="statsSheet">
+    <div class="sheet-handle"></div>
+    <h2>統計</h2>
+    <div class="grid2">
+      <div><label>優待総額</label><div style="font-size:18px;font-weight:700;" id="stTotal">-</div></div>
+      <div><label>使用済み</label><div style="font-size:18px;font-weight:700;" id="stUsed">-</div></div>
+      <div><label>未使用残高</label><div style="font-size:18px;font-weight:700;" id="stRemain">-</div></div>
+      <div><label>30日以内に期限</label><div style="font-size:18px;font-weight:700;" id="stSoon">-</div></div>
+    </div>
+    <div class="sheet-actions" style="margin-top:14px;"><button class="cancel-btn" id="statsCloseBtn" style="flex:1;">閉じる</button></div>
+  </div>
+
+  <div class="sheet-backdrop" id="ioBackdrop"></div>
+  <div class="sheet" id="ioSheet">
+    <div class="sheet-handle"></div>
+    <h2 id="ioTitle">データの書き出し</h2>
+    <p class="hint" id="ioHint"></p>
+    <textarea id="ioText" placeholder="ここにデータが表示されます"></textarea>
+    <div class="sheet-actions">
+      <button class="cancel-btn" id="ioCancelBtn">閉じる</button>
+      <button class="save-btn" id="ioActionBtn">コピーする</button>
+    </div>
+  </div>
+
+<script>
+const STOCK_DB = [
+  {name:"日本マクドナルドホールディングス", code:"2702"},
+  {name:"すかいらーくホールディングス", code:"3197"},
+  {name:"ゼンショーホールディングス", code:"7550"},
+  {name:"ワタミ", code:"7522"},
+  {name:"コロワイド", code:"7616"},
+  {name:"トリドールホールディングス", code:"3397"},
+  {name:"かっぱ・クリエイト", code:"7421"},
+  {name:"吉野家ホールディングス", code:"9861"},
+  {name:"モスフードサービス", code:"8153"},
+  {name:"ドトール・日レスホールディングス", code:"3087"},
+  {name:"プレナス", code:"9945"},
+  {name:"日本ケンタッキー・フライド・チキン", code:"9873"},
+  {name:"ANAホールディングス", code:"9202"},
+  {name:"日本航空", code:"9201"},
+  {name:"オリエンタルランド", code:"4661"},
+  {name:"KDDI", code:"9433"},
+  {name:"日本電信電話", code:"9432"},
+  {name:"ソフトバンク", code:"9434"},
+  {name:"ソフトバンクグループ", code:"9984"},
+  {name:"イオン", code:"8267"},
+  {name:"イオンモール", code:"8905"},
+  {name:"セブン&アイ・ホールディングス", code:"3382"},
+  {name:"ローソン", code:"2651"},
+  {name:"高島屋", code:"8233"},
+  {name:"三越伊勢丹ホールディングス", code:"3099"},
+  {name:"東日本旅客鉄道", code:"9020"},
+  {name:"西日本旅客鉄道", code:"9021"},
+  {name:"東海旅客鉄道", code:"9022"},
+  {name:"九州旅客鉄道", code:"9142"},
+  {name:"東急", code:"9005"},
+  {name:"京王電鉄", code:"9008"},
+  {name:"小田急電鉄", code:"9007"},
+  {name:"阪急阪神ホールディングス", code:"9042"},
+  {name:"西日本鉄道", code:"9031"},
+  {name:"ヤマダホールディングス", code:"9831"},
+  {name:"ビックカメラ", code:"3048"},
+  {name:"エディオン", code:"2730"},
+  {name:"ケーズホールディングス", code:"8282"},
+  {name:"ニトリホールディングス", code:"9843"},
+  {name:"しまむら", code:"8227"},
+  {name:"良品計画", code:"7453"},
+  {name:"ファーストリテイリング", code:"9983"},
+  {name:"マツモトキヨシホールディングス", code:"3088"},
+  {name:"ウエルシアホールディングス", code:"3141"},
+  {name:"ツルハホールディングス", code:"3391"},
+  {name:"サントリー食品インターナショナル", code:"2587"},
+  {name:"キリンホールディングス", code:"2503"},
+  {name:"アサヒグループホールディングス", code:"2502"},
+  {name:"サッポロホールディングス", code:"2501"},
+  {name:"明治ホールディングス", code:"2269"},
+  {name:"ヤクルト本社", code:"2267"},
+  {name:"カルビー", code:"2229"},
+  {name:"伊藤園", code:"2593"},
+  {name:"日清食品ホールディングス", code:"2897"},
+  {name:"バンダイナムコホールディングス", code:"7832"},
+  {name:"サンリオ", code:"8136"},
+  {name:"ラウンドワン", code:"4680"},
+  {name:"東宝", code:"9602"},
+  {name:"松竹", code:"9601"},
+  {name:"コナミグループ", code:"9766"},
+  {name:"セガサミーホールディングス", code:"6460"},
+  {name:"トヨタ自動車", code:"7203"},
+  {name:"本田技研工業", code:"7267"},
+  {name:"日産自動車", code:"7201"},
+  {name:"スズキ", code:"7269"},
+  {name:"SUBARU", code:"7270"},
+  {name:"マツダ", code:"7261"},
+  {name:"楽天グループ", code:"4755"},
+  {name:"ソニーグループ", code:"6758"},
+  {name:"パナソニックホールディングス", code:"6752"},
+  {name:"キヤノン", code:"7751"},
+  {name:"花王", code:"4452"},
+  {name:"資生堂", code:"4911"},
+  {name:"武田薬品工業", code:"4502"},
+  {name:"アステラス製薬", code:"4503"},
+  {name:"第一三共", code:"4568"},
+  {name:"エーザイ", code:"4523"},
+  {name:"中外製薬", code:"4519"},
+  {name:"塩野義製薬", code:"4507"},
+  {name:"大塚ホールディングス", code:"4578"},
+  {name:"ロート製薬", code:"4527"},
+  {name:"小林製薬", code:"4967"},
+  {name:"ライオン", code:"4912"},
+  {name:"コーセー", code:"4922"},
+  {name:"ポーラ・オルビスホールディングス", code:"4927"},
+  {name:"ファンケル", code:"4921"},
+  {name:"AOKIホールディングス", code:"8214"},
+  {name:"はるやまホールディングス", code:"7416"},
+  {name:"青山商事", code:"8219"},
+  {name:"クリエイト・レストランツ・ホールディングス", code:"3387"},
+  {name:"物語コーポレーション", code:"3097"},
+  {name:"サイゼリヤ", code:"7581"},
+  {name:"くら寿司", code:"2695"},
+  {name:"FOOD&LIFE COMPANIES", code:"3563"},
+  {name:"銚子丸", code:"3075"},
+  {name:"ダイドーグループホールディングス", code:"2590"},
+  {name:"J-オイルミルズ", code:"2613"},
+  {name:"日清製粉グループ本社", code:"2002"},
+  {name:"日本ハム", code:"2282"},
+  {name:"伊藤ハム米久ホールディングス", code:"2296"},
+  {name:"丸大食品", code:"2288"},
+  {name:"プリマハム", code:"2281"},
+  {name:"雪印メグミルク", code:"2270"},
+  {name:"森永乳業", code:"2264"},
+  {name:"森永製菓", code:"2201"},
+  {name:"江崎グリコ", code:"2206"},
+  {name:"不二家", code:"2211"},
+  {name:"ブルボン", code:"2208"},
+  {name:"亀田製菓", code:"2220"},
+  {name:"湖池屋", code:"2226"},
+  {name:"キーコーヒー", code:"2594"},
+  {name:"コカ・コーラ ボトラーズジャパンホールディングス", code:"2579"},
+  {name:"キユーピー", code:"2809"},
+  {name:"ハウス食品グループ本社", code:"2810"},
+  {name:"味の素", code:"2802"},
+  {name:"キッコーマン", code:"2801"},
+  {name:"ニチレイ", code:"2871"},
+  {name:"日本水産", code:"1332"},
+  {name:"マルハニチロ", code:"1333"},
+  {name:"極洋", code:"1301"},
+  {name:"日本たばこ産業", code:"2914"},
+  {name:"モロゾフ", code:"2217"},
+  {name:"ロック・フィールド", code:"2910"},
+  {name:"王将フードサービス", code:"9936"},
+  {name:"リンガーハット", code:"8200"},
+  {name:"アークランズ", code:"9842"},
+  {name:"DCMホールディングス", code:"3050"},
+  {name:"コメリ", code:"8218"},
+  {name:"良品計画", code:"7453"},
+  {name:"パン・パシフィック・インターナショナルホールディングス", code:"7532"},
+  {name:"アダストリア", code:"2685"},
+  {name:"ユナイテッドアローズ", code:"7606"},
+  {name:"TSIホールディングス", code:"3608"},
+  {name:"ワールド", code:"3612"},
+  {name:"パルグループホールディングス", code:"2726"},
+  {name:"ライトオン", code:"7445"},
+  {name:"西松屋チェーン", code:"7545"},
+  {name:"ABCマート", code:"2670"},
+  {name:"チヨダ", code:"8185"},
+  {name:"サンドラッグ", code:"9989"},
+  {name:"クリエイトSDホールディングス", code:"3148"},
+  {name:"コスモス薬品", code:"3349"},
+  {name:"スギホールディングス", code:"7649"},
+  {name:"カワチ薬品", code:"2664"},
+  {name:"アインホールディングス", code:"9627"},
+  {name:"クスリのアオキホールディングス", code:"3549"},
+  {name:"ゲンキー", code:"2772"},
+  {name:"アークス", code:"9948"},
+  {name:"ライフコーポレーション", code:"8194"},
+  {name:"バロー ホールディングス", code:"9956"},
+  {name:"ヤオコー", code:"8279"},
+  {name:"タカラトミー", code:"7867"},
+  {name:"エポック社", code:"7873"},
+  {name:"任天堂", code:"7974"},
+  {name:"カプコン", code:"9697"},
+  {name:"スクウェア・エニックス・ホールディングス", code:"9684"},
+  {name:"コーエーテクモホールディングス", code:"3635"},
+  {name:"ハピネット", code:"7552"},
+  {name:"三菱UFJフィナンシャル・グループ", code:"8306"},
+  {name:"三井住友フィナンシャルグループ", code:"8316"},
+  {name:"みずほフィナンシャルグループ", code:"8411"},
+  {name:"りそなホールディングス", code:"8308"},
+  {name:"オリックス", code:"8591"},
+  {name:"イオンフィナンシャルサービス", code:"8570"},
+  {name:"日本証券金融", code:"8511"},
+  {name:"東京海上ホールディングス", code:"8766"},
+  {name:"MS&ADインシュアランスグループホールディングス", code:"8725"},
+  {name:"SOMPOホールディングス", code:"8630"},
+  {name:"第一生命ホールディングス", code:"8750"},
+  {name:"かんぽ生命保険", code:"7181"},
+  {name:"日本郵政", code:"6178"},
+  {name:"三井不動産", code:"8801"},
+  {name:"三菱地所", code:"8802"},
+  {name:"住友不動産", code:"8830"},
+  {name:"東急不動産ホールディングス", code:"3289"},
+  {name:"野村不動産ホールディングス", code:"3231"},
+  {name:"ヒューリック", code:"3003"},
+  {name:"レオパレス21", code:"8848"},
+  {name:"大東建託", code:"1878"},
+  {name:"積水ハウス", code:"1928"},
+  {name:"大和ハウス工業", code:"1925"},
+  {name:"住友林業", code:"1911"},
+  {name:"パナソニックホールディングス", code:"6752"},
+  {name:"シャープ", code:"6753"},
+  {name:"日立製作所", code:"6501"},
+  {name:"東芝", code:"6502"},
+  {name:"三菱電機", code:"6503"},
+  {name:"富士通", code:"6702"},
+  {name:"NEC", code:"6701"},
+  {name:"京セラ", code:"6971"},
+  {name:"TDK", code:"6762"},
+  {name:"村田製作所", code:"6981"},
+  {name:"日本電産", code:"6594"},
+  {name:"オムロン", code:"6645"},
+  {name:"リコー", code:"7752"},
+  {name:"ニコン", code:"7731"},
+  {name:"オリンパス", code:"7733"},
+  {name:"カシオ計算機", code:"6952"},
+  {name:"セイコーエプソン", code:"6724"},
+  {name:"日本電気硝子", code:"5214"},
+  {name:"AGC", code:"5201"},
+  {name:"TOTO", code:"5332"},
+  {name:"LIXIL", code:"5938"},
+  {name:"ブリヂストン", code:"5108"},
+  {name:"住友ゴム工業", code:"5110"},
+  {name:"横浜ゴム", code:"5101"},
+  {name:"ヤマハ", code:"7951"},
+  {name:"ヤマハ発動機", code:"7272"},
+  {name:"スズキ", code:"7269"},
+  {name:"いすゞ自動車", code:"7202"},
+  {name:"三菱自動車工業", code:"7211"},
+  {name:"日野自動車", code:"7205"},
+  {name:"川崎重工業", code:"7012"},
+  {name:"IHI", code:"7013"},
+  {name:"三菱重工業", code:"7011"},
+  {name:"KDDI", code:"9433"},
+  {name:"Zホールディングス", code:"4689"},
+  {name:"LINEヤフー", code:"4689"},
+  {name:"サイバーエージェント", code:"4751"},
+  {name:"DeNA", code:"2432"},
+  {name:"ミクシィ", code:"2121"},
+  {name:"GMOインターネットグループ", code:"9449"},
+  {name:"エムスリー", code:"2413"},
+  {name:"リクルートホールディングス", code:"6098"},
+  {name:"パーソルホールディングス", code:"2181"},
+  {name:"綜合警備保障", code:"2331"},
+  {name:"セコム", code:"9735"},
+  {name:"日本郵船", code:"9101"},
+  {name:"商船三井", code:"9104"},
+  {name:"川崎汽船", code:"9107"},
+  {name:"ANAホールディングス", code:"9202"},
+  {name:"日本航空", code:"9201"},
+  {name:"スカイマーク", code:"9204"},
+  {name:"日本空港ビルデング", code:"9706"},
+  {name:"共立メンテナンス", code:"9616"},
+  {name:"藤田観光", code:"9722"},
+  {name:"リゾートトラスト", code:"4681"},
+  {name:"帝国ホテル", code:"9708"}
+];
+
+let entries = [];
+let editingId = null;
+let selectedUnit = '円';
+const STORAGE_KEY = 'yutai-entries';
+const hasCloudStorage = (typeof window.storage !== 'undefined') && !!window.storage;
+
+async function storageGet(key){
+  if(hasCloudStorage){
+    try{ return await window.storage.get(key, false); }catch(e){ return null; }
+  }
+  const v = localStorage.getItem(key);
+  return v ? {value:v} : null;
+}
+async function storageSet(key, value){
+  if(hasCloudStorage){
+    try{ await window.storage.set(key, value, false); }catch(e){ console.error(e); }
+    return;
+  }
+  localStorage.setItem(key, value);
+}
+
+function daysLeft(dateStr){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d = new Date(dateStr + 'T00:00:00');
+  return Math.round((d - today) / 86400000);
+}
+function yen(n){ return '¥' + Math.round(n||0).toLocaleString('ja-JP'); }
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function migrateEntry(e){
+  if(e.unit) return e;
+  if(e.type==='count'){
+    e.unit = '枚';
+    e.qty = e.count||0;
+    e.usedQty = e.usedCount||0;
+    e.unitValue = e.unitValue||0;
+  } else {
+    e.unit = '円';
+    e.qty = e.value||0;
+    e.usedQty = e.used||0;
+    e.unitValue = 0;
+  }
+  return e;
+}
+function valueYen(e){ return e.unit==='円' ? (e.qty||0) : (e.qty||0)*(e.unitValue||0); }
+function usedYen(e){ return e.unit==='円' ? (e.usedQty||0) : (e.usedQty||0)*(e.unitValue||0); }
+function benefitIcon(str){
+  if(!str) return '🎫';
+  if(str.includes('食事')) return '🍴';
+  if(str.includes('買物')||str.includes('割引')) return '🛍';
+  if(str.includes('カタログ')) return '🎁';
+  if(str.includes('クオカード')) return '💳';
+  if(str.includes('自社製品')) return '📦';
+  if(str.includes('宿泊')) return '🏨';
+  if(str.includes('施設')) return '🎫';
+  if(str.includes('ポイント')) return '⭐';
+  if(str.includes('図書')) return '📚';
+  return '🎫';
+}
+
+function render(){
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const filtered = entries.filter(e => !q || e.name.toLowerCase().includes(q));
+  const sorted = [...filtered].sort((a,b)=> daysLeft(a.expiry) - daysLeft(b.expiry));
+
+  const listArea = document.getElementById('listArea');
+  const emptyMsg = document.getElementById('emptyMsg');
+  listArea.innerHTML = '';
+  emptyMsg.style.display = sorted.length ? 'none' : 'block';
+
+  let total=0, used=0, soonCount=0;
+  entries.forEach(e=>{
+    total += valueYen(e);
+    used += usedYen(e);
+    const d = daysLeft(e.expiry);
+    if(d>=0 && d<=30) soonCount++;
+  });
+  document.getElementById('stTotal').textContent = yen(total);
+  document.getElementById('stUsed').textContent = yen(used);
+  document.getElementById('stRemain').textContent = yen(total-used);
+  document.getElementById('stSoon').textContent = soonCount + '件';
+
+  let lastDate = null;
+  sorted.forEach(e=>{
+    if(e.expiry !== lastDate){
+      lastDate = e.expiry;
+      const [y,m,d] = e.expiry.split('-');
+      const header = document.createElement('div');
+      header.className = 'date-header';
+      header.textContent = `${y}年${Number(m)}月${Number(d)}日`;
+      listArea.appendChild(header);
+    }
+    const d = daysLeft(e.expiry);
+    const expired = d < 0;
+    const div = document.createElement('div');
+    div.className = 'ticket' + (expired ? ' expired' : '');
+    const remainQty = (e.qty||0) - (e.usedQty||0);
+    const amountText = e.unit==='円' ? yen(remainQty) : `${remainQty}${e.unit}`;
+    const dayText = expired ? '期限切れ' : `あと${d}日`;
+    div.innerHTML = `
+      <div class="t-top">
+        <div class="t-name">${e.code ? `<span class="t-code">${escapeHtml(e.code)}</span>` : ''}${escapeHtml(e.name)}</div>
+        <div class="t-amount">${amountText}</div>
+      </div>
+      <div class="t-meta">
+        <span class="t-benefit">${benefitIcon(e.benefit)} ${escapeHtml(e.benefit || '優待')}</span>
+        <span class="pill">📅 ${dayText}</span>
+      </div>
+    `;
+    div.addEventListener('click', ()=>openSheet(e.id));
+    listArea.appendChild(div);
+  });
+}
+
+document.getElementById('searchInput').addEventListener('input', render);
+
+document.getElementById('unitChips').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  selectedUnit = btn.getAttribute('data-unit');
+  document.querySelectorAll('#unitChips .chip').forEach(b=>b.classList.toggle('active', b===btn));
+  updateUnitLabels();
+});
+function updateUnitLabels(){
+  if(selectedUnit==='円'){
+    document.getElementById('qtyLabel').textContent = '優待金額（円）';
+    document.getElementById('usedLabel').textContent = '使用済み金額（円）';
+    document.getElementById('unitValueWrap').style.display = 'none';
+  } else {
+    document.getElementById('qtyLabel').textContent = `総${selectedUnit}数`;
+    document.getElementById('usedLabel').textContent = `使用済み${selectedUnit}数`;
+    document.getElementById('unitValueWrap').style.display = '';
+  }
+}
+
+document.getElementById('benefitChips').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  btn.classList.toggle('active');
+});
+function getSelectedBenefit(){
+  const chips = [...document.querySelectorAll('#benefitChips .chip.active')].map(b=>b.getAttribute('data-benefit'));
+  const other = document.getElementById('f_benefit_other').value.trim();
+  if(other) chips.push(other);
+  return chips.join('・');
+}
+function setSelectedBenefit(str){
+  document.querySelectorAll('#benefitChips .chip').forEach(b=>b.classList.remove('active'));
+  document.getElementById('f_benefit_other').value = '';
+  if(!str) return;
+  const parts = str.split(/[・、]/).map(s=>s.trim()).filter(Boolean);
+  const leftover = [];
+  parts.forEach(p=>{
+    const chip = [...document.querySelectorAll('#benefitChips .chip')].find(b=>b.getAttribute('data-benefit')===p);
+    if(chip) chip.classList.add('active');
+    else leftover.push(p);
+  });
+  document.getElementById('f_benefit_other').value = leftover.join('・');
+}
+
+const STOCK_DB_INDEX = STOCK_DB.filter(s=>s.code);
+function findMatches(q){
+  if(!q || q.length < 1) return [];
+  const lower = q.toLowerCase();
+  return STOCK_DB_INDEX.filter(s => s.name.toLowerCase().includes(lower)).slice(0,8);
+}
+const nameInput = document.getElementById('f_name');
+const codeInput = document.getElementById('f_code');
+const suggestionList = document.getElementById('nameSuggestions');
+nameInput.addEventListener('input', ()=>{
+  const q = nameInput.value.trim();
+  const matches = findMatches(q);
+  suggestionList.innerHTML = matches.map(m=>`<option value="${escapeHtml(m.name)}">`).join('');
+  const exact = STOCK_DB_INDEX.find(s=>s.name === q);
+  if(exact){
+    codeInput.value = exact.code;
+  } else if(matches.length === 1){
+    codeInput.value = matches[0].code;
+  }
+});
+
+function openSheet(id){
+  const backdrop = document.getElementById('backdrop');
+  const sheet = document.getElementById('sheet');
+  document.getElementById('formErr').style.display='none';
+  if(id){
+    const e = entries.find(x=>x.id===id);
+    editingId = id;
+    document.getElementById('formTitle').textContent = '優待を編集';
+    document.getElementById('f_name').value = e.name;
+    document.getElementById('f_code').value = e.code||'';
+    document.getElementById('f_qty').value = e.qty||'';
+    document.getElementById('f_used').value = e.usedQty||'';
+    document.getElementById('f_unitValue').value = e.unitValue||'';
+    document.getElementById('f_expiry').value = e.expiry;
+    selectedUnit = e.unit || '円';
+    setSelectedBenefit(e.benefit||'');
+    document.getElementById('deleteBtn').style.display = '';
+    document.getElementById('quickUseBtn').style.display = '';
+  } else {
+    editingId = null;
+    document.getElementById('formTitle').textContent = '優待を追加';
+    ['f_name','f_code','f_benefit_other','f_qty','f_used','f_unitValue','f_expiry'].forEach(fid=>document.getElementById(fid).value='');
+    selectedUnit = '円';
+    document.querySelectorAll('#benefitChips .chip').forEach(b=>b.classList.remove('active'));
+    document.getElementById('deleteBtn').style.display = 'none';
+    document.getElementById('quickUseBtn').style.display = 'none';
+  }
+  document.querySelectorAll('#unitChips .chip').forEach(b=>b.classList.toggle('active', b.getAttribute('data-unit')===selectedUnit));
+  updateUnitLabels();
+  backdrop.classList.add('show');
+  sheet.classList.add('show');
+}
+function closeSheet(){
+  document.getElementById('backdrop').classList.remove('show');
+  document.getElementById('sheet').classList.remove('show');
+}
+document.getElementById('fabBtn').addEventListener('click', ()=>openSheet(null));
+document.getElementById('backdrop').addEventListener('click', closeSheet);
+document.getElementById('cancelBtn').addEventListener('click', closeSheet);
+
+document.getElementById('deleteBtn').addEventListener('click', ()=>{
+  if(!editingId) return;
+  if(confirm('この優待を削除しますか？')){
+    entries = entries.filter(x=>x.id!==editingId);
+    persist();
+    render();
+    closeSheet();
+  }
+});
+document.getElementById('quickUseBtn').addEventListener('click', ()=>{
+  if(!editingId) return;
+  const id = editingId;
+  closeSheet();
+  openUseSheet(id);
+});
+
+document.getElementById('saveBtn').addEventListener('click', ()=>{
+  const name = document.getElementById('f_name').value.trim();
+  const expiry = document.getElementById('f_expiry').value;
+  const errEl = document.getElementById('formErr');
+  if(!name || !expiry){
+    errEl.textContent = !name ? '銘柄名を入力してください' : '有効期限を入力してください';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  const data = {
+    id: editingId || String(Date.now()),
+    name,
+    code: document.getElementById('f_code').value.trim(),
+    benefit: getSelectedBenefit(),
+    unit: selectedUnit,
+    qty: Number(document.getElementById('f_qty').value)||0,
+    usedQty: Number(document.getElementById('f_used').value)||0,
+    unitValue: Number(document.getElementById('f_unitValue').value)||0,
+    expiry
+  };
+  if(editingId){
+    entries = entries.map(x=>x.id===editingId ? data : x);
+  } else {
+    entries.push(data);
+  }
+  persist();
+  closeSheet();
+  render();
+});
+
+let useEntryId = null;
+function openUseSheet(id){
+  const e = entries.find(x=>x.id===id);
+  if(!e) return;
+  useEntryId = id;
+  document.getElementById('useTitle').textContent = '使用を記録：' + e.name;
+  document.getElementById('useErr').style.display = 'none';
+  document.getElementById('f_useAmount').value = '';
+  const remain = (e.qty||0) - (e.usedQty||0);
+  if(e.unit==='円'){
+    document.getElementById('useLabel').textContent = '今回使った金額（円）';
+    document.getElementById('f_useAmount').placeholder = '1000';
+    document.getElementById('useCurrent').textContent = `現在：${yen(e.usedQty)}使用 / ${yen(e.qty)}中（残り${yen(remain)}）`;
+  } else {
+    document.getElementById('useLabel').textContent = '今回使った' + e.unit + '数';
+    document.getElementById('f_useAmount').placeholder = '1';
+    document.getElementById('useCurrent').textContent = `現在：${e.usedQty||0}${e.unit}使用 / ${e.qty||0}${e.unit}中（残り${remain}${e.unit}）`;
+  }
+  document.getElementById('useBackdrop').classList.add('show');
+  document.getElementById('useSheet').classList.add('show');
+  setTimeout(()=>document.getElementById('f_useAmount').focus(), 200);
+}
+function closeUseSheet(){
+  document.getElementById('useBackdrop').classList.remove('show');
+  document.getElementById('useSheet').classList.remove('show');
+}
+document.getElementById('useBackdrop').addEventListener('click', closeUseSheet);
+document.getElementById('useCancelBtn').addEventListener('click', closeUseSheet);
+document.getElementById('useSaveBtn').addEventListener('click', ()=>{
+  const e = entries.find(x=>x.id===useEntryId);
+  if(!e) return;
+  const errEl = document.getElementById('useErr');
+  const amt = Number(document.getElementById('f_useAmount').value);
+  if(!amt || amt<=0){
+    errEl.textContent = '1以上の数値を入力してください';
+    errEl.style.display = 'block';
+    return;
+  }
+  const newUsed = (e.usedQty||0) + amt;
+  if(newUsed > e.qty){
+    errEl.textContent = `上限（${e.qty}${e.unit==='円'?'円':e.unit}）を超えています`;
+    errEl.style.display = 'block';
+    return;
+  }
+  e.usedQty = newUsed;
+  errEl.style.display = 'none';
+  persist();
+  render();
+  closeUseSheet();
+});
+
+function openSettingsSheet(){
+  document.getElementById('settingsBackdrop').classList.add('show');
+  document.getElementById('settingsSheet').classList.add('show');
+}
+function closeSettingsSheet(){
+  document.getElementById('settingsBackdrop').classList.remove('show');
+  document.getElementById('settingsSheet').classList.remove('show');
+}
+document.getElementById('settingsBtn').addEventListener('click', openSettingsSheet);
+document.getElementById('settingsBackdrop').addEventListener('click', closeSettingsSheet);
+document.getElementById('settingsCloseBtn').addEventListener('click', closeSettingsSheet);
+document.getElementById('openExportBtn').addEventListener('click', ()=>{ closeSettingsSheet(); openIo('export'); });
+document.getElementById('openImportBtn').addEventListener('click', ()=>{ closeSettingsSheet(); openIo('import'); });
+
+function openStatsSheet(){
+  document.getElementById('statsBackdrop').classList.add('show');
+  document.getElementById('statsSheet').classList.add('show');
+}
+function closeStatsSheet(){
+  document.getElementById('statsBackdrop').classList.remove('show');
+  document.getElementById('statsSheet').classList.remove('show');
+}
+document.getElementById('statsBtn').addEventListener('click', openStatsSheet);
+document.getElementById('statsBackdrop').addEventListener('click', closeStatsSheet);
+document.getElementById('statsCloseBtn').addEventListener('click', closeStatsSheet);
+
+let ioMode = 'export';
+function openIo(mode){
+  ioMode = mode;
+  const backdrop = document.getElementById('ioBackdrop');
+  const sheet = document.getElementById('ioSheet');
+  const title = document.getElementById('ioTitle');
+  const hint = document.getElementById('ioHint');
+  const text = document.getElementById('ioText');
+  const actionBtn = document.getElementById('ioActionBtn');
+  if(mode==='export'){
+    title.textContent = 'データの書き出し';
+    hint.textContent = '下の文字列を全部コピーして、新しいバージョンの「読み込み」に貼り付けてください。';
+    text.value = JSON.stringify(entries);
+    text.readOnly = true;
+    actionBtn.textContent = 'コピーする';
+  } else {
+    title.textContent = 'データの読み込み';
+    hint.textContent = '以前書き出したデータを貼り付けて「読み込む」を押してください。今の内容には追加されます。';
+    text.value = '';
+    text.readOnly = false;
+    actionBtn.textContent = '読み込む';
+  }
+  backdrop.classList.add('show');
+  sheet.classList.add('show');
+  setTimeout(()=>text.focus(), 200);
+}
+function closeIo(){
+  document.getElementById('ioBackdrop').classList.remove('show');
+  document.getElementById('ioSheet').classList.remove('show');
+}
+document.getElementById('ioBackdrop').addEventListener('click', closeIo);
+document.getElementById('ioCancelBtn').addEventListener('click', closeIo);
+document.getElementById('ioActionBtn').addEventListener('click', async ()=>{
+  const text = document.getElementById('ioText');
+  if(ioMode==='export'){
+    text.select();
+    try{
+      await navigator.clipboard.writeText(text.value);
+      alert('コピーしました');
+    }catch(e){
+      alert('自動コピーできませんでした。文字列を選択して手動でコピーしてください。');
+    }
+  } else {
+    try{
+      const imported = JSON.parse(text.value).map(migrateEntry);
+      if(!Array.isArray(imported)) throw new Error('形式エラー');
+      const existingIds = new Set(entries.map(e=>e.id));
+      imported.forEach(item=>{
+        if(item && item.name && item.expiry){
+          if(existingIds.has(item.id)) item.id = String(Date.now()) + Math.random().toString(16).slice(2);
+          entries.push(item);
+        }
+      });
+      persist();
+      render();
+      closeIo();
+      alert('読み込みました（' + imported.length + '件）');
+    }catch(e){
+      alert('データを読み込めませんでした。書き出した文字列をそのまま貼り付けてください。');
+    }
+  }
+});
+
+async function persist(){
+  await storageSet(STORAGE_KEY, JSON.stringify(entries));
+}
+async function load(){
+  try{
+    const res = await storageGet(STORAGE_KEY);
+    entries = res && res.value ? JSON.parse(res.value).map(migrateEntry) : [];
+  }catch(err){
+    entries = [];
+  }
+  render();
+}
+load();
+
+function makeIcon(size){
+  const canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const r = size*0.22;
+  ctx.fillStyle = '#5B3A22';
+  ctx.beginPath();
+  ctx.moveTo(r,0);
+  ctx.arcTo(size,0,size,size,r);
+  ctx.arcTo(size,size,0,size,r);
+  ctx.arcTo(0,size,0,0,r);
+  ctx.arcTo(0,0,size,0,r);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#FBF1E9';
+  ctx.font = 'bold ' + Math.floor(size*0.52) + 'px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('優', size/2, size/2 + size*0.03);
+  return canvas.toDataURL('image/png');
+}
+try{
+  const icon192 = makeIcon(192);
+  const icon512 = makeIcon(512);
+  let touchIcon = document.querySelector('link[rel="apple-touch-icon"]');
+  if(!touchIcon){
+    touchIcon = document.createElement('link');
+    touchIcon.rel = 'apple-touch-icon';
+    document.head.appendChild(touchIcon);
+  }
+  touchIcon.href = icon192;
+  let favicon = document.createElement('link');
+  favicon.rel = 'icon';
+  favicon.href = icon192;
+  document.head.appendChild(favicon);
+
+  const manifest = {
+    name: "株主優待トラッカー",
+    short_name: "優待管理",
+    start_url: ".",
+    scope: "./",
+    display: "standalone",
+    background_color: "#FBF1E9",
+    theme_color: "#F3D6C4",
+    icons: [
+      {src: icon192, sizes: "192x192", type: "image/png", purpose: "any maskable"},
+      {src: icon512, sizes: "512x512", type: "image/png", purpose: "any maskable"}
+    ]
+  };
+  const manifestBlob = new Blob([JSON.stringify(manifest)], {type:'application/json'});
+  document.getElementById('manifestLink').setAttribute('href', URL.createObjectURL(manifestBlob));
+}catch(e){ console.error('PWAアイコン設定に失敗', e); }
+
+if('serviceWorker' in navigator){
+  try{
+    const swCode = "self.addEventListener('install',e=>self.skipWaiting());self.addEventListener('activate',e=>self.clients.claim());self.addEventListener('fetch',e=>{});";
+    const swBlob = new Blob([swCode], {type:'application/javascript'});
+    navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(()=>{});
+  }catch(e){}
+}
+</script>
+</body>
+</html>
